@@ -65,6 +65,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 
 // 根据环境选择使用真实API还是模拟API
 const isDevEnvironment = import.meta.env.DEV;
@@ -146,8 +147,8 @@ function App() {
 
   // 新增认证状态
   const [isAuthChecking, setIsAuthChecking] = useState(true);
-  const [isAuthRequired, setIsAuthRequired] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdminMode, setIsAdminMode] = useState(false); // 是否为管理员模式
+  const [showLoginDialog, setShowLoginDialog] = useState(false); // 是否显示登录对话框
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -221,40 +222,39 @@ function App() {
       setIsAuthChecking(true);
       console.log('开始检查认证状态...');
 
-      // 尝试进行API调用，检查是否需要认证
-      const result = await api.checkAuthStatus();
-      console.log('认证检查结果:', result);
-
-      if (!result) {
-        // 未认证，需要登录
-        console.log('未认证，设置需要登录状态');
-
-        // 如果有token但无效，清除它
-        if (api.isLoggedIn()) {
-          console.log('清除无效token');
+      // 检查是否有有效的token
+      if (api.isLoggedIn()) {
+        const result = await api.checkAuthStatus();
+        if (result) {
+          // token有效，进入管理员模式
+          console.log('Token有效，进入管理员模式');
+          setIsAdminMode(true);
+        } else {
+          // token无效，清除并进入游客模式
+          console.log('Token无效，清除并进入游客模式');
           api.logout();
+          setIsAdminMode(false);
         }
-
-        // 直接更新状态，确保先设置认证状态再结束检查
-        setIsAuthenticated(false);
-        setIsAuthRequired(true);
       } else {
-        // 直接更新认证状态
-        setIsAuthenticated(true);
-        setIsAuthRequired(false);
-
-        // 如果已经登录或不需要认证，继续加载数据
-        console.log('已认证，开始加载数据');
-        await fetchData();
-        await fetchConfigs();
+        // 没有token，进入游客模式
+        console.log('没有Token，进入游客模式');
+        setIsAdminMode(false);
       }
+
+      // 无论哪种模式都加载数据
+      console.log('开始加载数据');
+      await fetchData();
+      await fetchConfigs();
     } catch (error) {
       console.error('认证检查失败:', error);
-      // 如果返回401，说明需要认证
-      if (error instanceof Error && error.message.includes('认证')) {
-        console.log('检测到认证错误，设置需要登录状态');
-        setIsAuthenticated(false);
-        setIsAuthRequired(true);
+      // 出错时进入游客模式
+      setIsAdminMode(false);
+      // 继续尝试加载数据
+      try {
+        await fetchData();
+        await fetchConfigs();
+      } catch (dataError) {
+        console.error('加载数据失败:', dataError);
       }
     } finally {
       console.log('认证检查完成');
@@ -269,24 +269,24 @@ function App() {
       setLoginError(null);
 
       // 调用登录接口
-      const success = await api.login(username, password, rememberMe);
+      const result = await api.login(username, password, rememberMe);
 
-      if (success) {
+      if (result.success) {
         // 登录成功
-        setIsAuthenticated(true);
-        setIsAuthRequired(false);
+        setIsAdminMode(true);
+        setShowLoginDialog(false);
         // 加载数据
         await fetchData();
         await fetchConfigs();
       } else {
         // 登录失败
-        handleError('用户名或密码错误');
-        setIsAuthenticated(false);
+        setLoginError(result.message || '用户名或密码错误');
+        setIsAdminMode(false);
       }
     } catch (error) {
       console.error('登录失败:', error);
-      handleError('登录失败: ' + (error instanceof Error ? error.message : '未知错误'));
-      setIsAuthenticated(false);
+      setLoginError('登录失败: ' + (error instanceof Error ? error.message : '未知错误'));
+      setIsAdminMode(false);
     } finally {
       setLoginLoading(false);
     }
@@ -295,15 +295,12 @@ function App() {
   // 登出功能
   const handleLogout = () => {
     api.logout();
-    setIsAuthenticated(false);
-    setIsAuthRequired(true);
-
-    // 清空数据
-    setGroups([]);
+    setIsAdminMode(false);
     handleMenuClose();
 
     // 显示提示信息
-    setError('已退出登录，请重新登录');
+    setSnackbarMessage('已退出管理员模式');
+    setSnackbarOpen(true);
   };
 
   // 加载配置
@@ -419,12 +416,6 @@ function App() {
     } catch (error) {
       console.error('加载数据失败:', error);
       handleError('加载数据失败: ' + (error instanceof Error ? error.message : '未知错误'));
-
-      // 如果因为认证问题导致加载失败，处理认证状态
-      if (error instanceof Error && error.message.includes('认证')) {
-        setIsAuthRequired(true);
-        setIsAuthenticated(false);
-      }
     } finally {
       setLoading(false);
     }
@@ -810,23 +801,6 @@ function App() {
     }
   };
 
-  // 渲染登录页面
-  const renderLoginForm = () => {
-    return (
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: 'background.default',
-        }}
-      >
-        <LoginForm onLogin={handleLogin} loading={loginLoading} error={loginError} />
-      </Box>
-    );
-  };
-
   // 如果正在检查认证状态，显示加载界面
   if (isAuthChecking) {
     return (
@@ -843,16 +817,6 @@ function App() {
         >
           <CircularProgress size={60} thickness={4} />
         </Box>
-      </ThemeProvider>
-    );
-  }
-
-  // 如果需要认证但未认证，显示登录界面
-  if (isAuthRequired && !isAuthenticated) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {renderLoginForm()}
       </ThemeProvider>
     );
   }
@@ -1045,82 +1009,97 @@ function App() {
                 </>
               ) : (
                 <>
-                  <Button
-                    variant='contained'
-                    color='primary'
-                    startIcon={<AddIcon />}
-                    onClick={handleOpenAddGroup}
-                    size='small'
-                    sx={{
-                      minWidth: 'auto',
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    }}
-                  >
-                    新增分组
-                  </Button>
+                  {isAdminMode && (
+                    <>
+                      <Button
+                        variant='contained'
+                        color='primary'
+                        startIcon={<AddIcon />}
+                        onClick={handleOpenAddGroup}
+                        size='small'
+                        sx={{
+                          minWidth: 'auto',
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        }}
+                      >
+                        新增分组
+                      </Button>
 
-                  <Button
-                    variant='outlined'
-                    color='primary'
-                    startIcon={<MenuIcon />}
-                    onClick={handleMenuOpen}
-                    aria-controls={openMenu ? 'navigation-menu' : undefined}
-                    aria-haspopup='true'
-                    aria-expanded={openMenu ? 'true' : undefined}
-                    size='small'
-                    sx={{
-                      minWidth: 'auto',
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    }}
-                  >
-                    更多选项
-                  </Button>
-                  <Menu
-                    id='navigation-menu'
-                    anchorEl={menuAnchorEl}
-                    open={openMenu}
-                    onClose={handleMenuClose}
-                    MenuListProps={{
-                      'aria-labelledby': 'navigation-button',
-                    }}
-                  >
-                    <MenuItem onClick={startGroupSort}>
-                      <ListItemIcon>
-                        <SortIcon fontSize='small' />
-                      </ListItemIcon>
-                      <ListItemText>编辑排序</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={handleOpenConfig}>
-                      <ListItemIcon>
-                        <SettingsIcon fontSize='small' />
-                      </ListItemIcon>
-                      <ListItemText>网站设置</ListItemText>
-                    </MenuItem>
-                    <Divider />
-                    <MenuItem onClick={handleExportData}>
-                      <ListItemIcon>
-                        <FileDownloadIcon fontSize='small' />
-                      </ListItemIcon>
-                      <ListItemText>导出数据</ListItemText>
-                    </MenuItem>
-                    <MenuItem onClick={handleOpenImport}>
-                      <ListItemIcon>
-                        <FileUploadIcon fontSize='small' />
-                      </ListItemIcon>
-                      <ListItemText>导入数据</ListItemText>
-                    </MenuItem>
-                    {isAuthenticated && (
-                      <>
+                      <Button
+                        variant='outlined'
+                        color='primary'
+                        startIcon={<MenuIcon />}
+                        onClick={handleMenuOpen}
+                        aria-controls={openMenu ? 'navigation-menu' : undefined}
+                        aria-haspopup='true'
+                        aria-expanded={openMenu ? 'true' : undefined}
+                        size='small'
+                        sx={{
+                          minWidth: 'auto',
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        }}
+                      >
+                        更多选项
+                      </Button>
+                      <Menu
+                        id='navigation-menu'
+                        anchorEl={menuAnchorEl}
+                        open={openMenu}
+                        onClose={handleMenuClose}
+                        MenuListProps={{
+                          'aria-labelledby': 'navigation-button',
+                        }}
+                      >
+                        <MenuItem onClick={startGroupSort}>
+                          <ListItemIcon>
+                            <SortIcon fontSize='small' />
+                          </ListItemIcon>
+                          <ListItemText>编辑排序</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={handleOpenConfig}>
+                          <ListItemIcon>
+                            <SettingsIcon fontSize='small' />
+                          </ListItemIcon>
+                          <ListItemText>网站设置</ListItemText>
+                        </MenuItem>
+                        <Divider />
+                        <MenuItem onClick={handleExportData}>
+                          <ListItemIcon>
+                            <FileDownloadIcon fontSize='small' />
+                          </ListItemIcon>
+                          <ListItemText>导出数据</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={handleOpenImport}>
+                          <ListItemIcon>
+                            <FileUploadIcon fontSize='small' />
+                          </ListItemIcon>
+                          <ListItemText>导入数据</ListItemText>
+                        </MenuItem>
                         <Divider />
                         <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
                           <ListItemIcon sx={{ color: 'error.main' }}>
                             <LogoutIcon fontSize='small' />
                           </ListItemIcon>
-                          <ListItemText>退出登录</ListItemText>
+                          <ListItemText>退出管理员模式</ListItemText>
                         </MenuItem>
-                      </>
-                    )}
-                  </Menu>
+                      </Menu>
+                    </>
+                  )}
+                  {!isAdminMode && (
+                    <Button
+                      variant='contained'
+                      color='primary'
+                      startIcon={<LockOutlinedIcon />}
+                      onClick={() => setShowLoginDialog(true)}
+                      size='small'
+                      sx={{
+                        minWidth: 'auto',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      }}
+                    >
+                      管理员登录
+                    </Button>
+                  )}
                 </>
               )}
               <ThemeToggle darkMode={darkMode} onToggle={toggleTheme} />
@@ -1187,6 +1166,7 @@ function App() {
                       onUpdateGroup={handleGroupUpdate}
                       onDeleteGroup={handleGroupDelete}
                       configs={configs}
+                      isAdminMode={isAdminMode}
                     />
                   ))}
                 </Stack>
@@ -1604,6 +1584,39 @@ function App() {
                 {importLoading ? '导入中...' : '导入'}
               </Button>
             </DialogActions>
+          </Dialog>
+
+          {/* 管理员登录对话框 */}
+          <Dialog
+            open={showLoginDialog}
+            onClose={() => !loginLoading && setShowLoginDialog(false)}
+            maxWidth='sm'
+            fullWidth
+            PaperProps={{
+              sx: {
+                m: { xs: 2, sm: 'auto' },
+                width: { xs: 'calc(100% - 32px)', sm: 'auto' },
+              },
+            }}
+          >
+            <DialogTitle>
+              管理员登录
+              <IconButton
+                aria-label='close'
+                onClick={() => !loginLoading && setShowLoginDialog(false)}
+                disabled={loginLoading}
+                sx={{
+                  position: 'absolute',
+                  right: 8,
+                  top: 8,
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent>
+              <LoginForm onLogin={handleLogin} loading={loginLoading} error={loginError} />
+            </DialogContent>
           </Dialog>
 
           {/* GitHub角标 - 在移动端调整位置 */}

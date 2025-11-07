@@ -47,8 +47,25 @@ export default {
                     return new Response("数据库初始化成功", { status: 200 });
                 }
 
-                // 验证中间件 - 除登录接口和初始化接口外，所有请求都需要验证
-                if (api.isAuthEnabled()) {
+                // 定义需要管理员权限的写操作路由
+                const writeOperations = [
+                    { pattern: /^groups$/, methods: ["POST"] },
+                    { pattern: /^groups\/\d+$/, methods: ["PUT", "DELETE"] },
+                    { pattern: /^sites$/, methods: ["POST"] },
+                    { pattern: /^sites\/\d+$/, methods: ["PUT", "DELETE"] },
+                    { pattern: /^configs\/.*$/, methods: ["PUT", "DELETE"] },
+                    { pattern: /^group-orders$/, methods: ["PUT"] },
+                    { pattern: /^site-orders$/, methods: ["PUT"] },
+                    { pattern: /^import$/, methods: ["POST"] },
+                ];
+
+                // 检查当前请求是否为写操作
+                const isWriteOperation = writeOperations.some(
+                    (op) => op.pattern.test(path) && op.methods.includes(method)
+                );
+
+                // 验证中间件 - 只对写操作需要验证
+                if (isWriteOperation && api.isAuthEnabled()) {
                     // 检查Authorization头部
                     const authHeader = request.headers.get("Authorization");
 

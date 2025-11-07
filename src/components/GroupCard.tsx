@@ -51,6 +51,7 @@ interface GroupCardProps {
   onUpdateGroup?: (group: Group) => void; // 更新分组的回调函数
   onDeleteGroup?: (groupId: number) => void; // 删除分组的回调函数
   configs?: Record<string, string>; // 传入配置
+  isAdminMode?: boolean; // 是否为管理员模式
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({
@@ -65,6 +66,7 @@ const GroupCard: React.FC<GroupCardProps> = ({
   onUpdateGroup,
   onDeleteGroup,
   configs,
+  isAdminMode = false,
 }) => {
   // 添加本地状态来管理站点排序
   const [sites, setSites] = useState<Site[]>(group.sites);
@@ -204,6 +206,7 @@ const GroupCard: React.FC<GroupCardProps> = ({
                       isEditMode={true}
                       index={idx}
                       iconApi={configs?.['site.iconApi']} // 传入iconApi配置
+                      isAdminMode={isAdminMode} // 传递管理员模式
                     />
                   </Box>
                 ))}
@@ -244,6 +247,7 @@ const GroupCard: React.FC<GroupCardProps> = ({
               onDelete={onDelete}
               isEditMode={false}
               iconApi={configs?.['site.iconApi']} // 传入iconApi配置
+              isAdminMode={isAdminMode} // 传递管理员模式
             />
           </Box>
         ))}
@@ -350,66 +354,70 @@ const GroupCard: React.FC<GroupCardProps> = ({
             justifyContent: { xs: 'flex-start', sm: 'flex-end' },
           }}
         >
-          {isCurrentEditingGroup ? (
-            <Button
-              variant='contained'
-              color='primary'
-              size='small'
-              startIcon={<SaveIcon />}
-              onClick={handleSaveSiteOrder}
-              sx={{
-                minWidth: 'auto',
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              }}
-            >
-              保存顺序
-            </Button>
-          ) : (
-            sortMode === 'None' && (
-              <>
-                {onAddSite && (
-                  <Button
-                    variant='contained'
-                    color='primary'
-                    size='small'
-                    onClick={() => onAddSite(group.id!)}
-                    startIcon={<AddIcon />}
-                    sx={{
-                      minWidth: 'auto',
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    }}
-                  >
-                    添加卡片
-                  </Button>
-                )}
+          {isAdminMode && (
+            <>
+              {isCurrentEditingGroup ? (
                 <Button
-                  variant='outlined'
+                  variant='contained'
                   color='primary'
                   size='small'
-                  startIcon={<SortIcon />}
-                  onClick={handleSortClick}
+                  startIcon={<SaveIcon />}
+                  onClick={handleSaveSiteOrder}
                   sx={{
                     minWidth: 'auto',
                     fontSize: { xs: '0.75rem', sm: '0.875rem' },
                   }}
                 >
-                  排序
+                  保存顺序
                 </Button>
-
-                {onUpdateGroup && onDeleteGroup && (
-                  <Tooltip title='编辑分组'>
-                    <IconButton
+              ) : (
+                sortMode === 'None' && (
+                  <>
+                    {onAddSite && (
+                      <Button
+                        variant='contained'
+                        color='primary'
+                        size='small'
+                        onClick={() => onAddSite(group.id!)}
+                        startIcon={<AddIcon />}
+                        sx={{
+                          minWidth: 'auto',
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        }}
+                      >
+                        添加卡片
+                      </Button>
+                    )}
+                    <Button
+                      variant='outlined'
                       color='primary'
-                      onClick={handleEditClick}
                       size='small'
-                      sx={{ alignSelf: 'center' }}
+                      startIcon={<SortIcon />}
+                      onClick={handleSortClick}
+                      sx={{
+                        minWidth: 'auto',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      }}
                     >
-                      <EditIcon />
-                    </IconButton>
-                  </Tooltip>
-                )}
-              </>
-            )
+                      排序
+                    </Button>
+
+                    {onUpdateGroup && onDeleteGroup && (
+                      <Tooltip title='编辑分组'>
+                        <IconButton
+                          color='primary'
+                          onClick={handleEditClick}
+                          size='small'
+                          sx={{ alignSelf: 'center' }}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </>
+                )
+              )}
+            </>
           )}
         </Box>
       </Box>
