@@ -146,46 +146,53 @@ NaviHive 是一个精美的网站导航管理系统，帮助你整理和管理�
    ![数据库管理界面](https://img.zhengmi.org/file/1743843332374_image.png)
 
    - 在数据库管理界面，点击"控制台"选项卡进入SQL编辑器
-   - 在SQL编辑器中，逐个复制并粘贴以下SQL命令：
+   - 在SQL编辑器中，复制并粘贴以下SQL命令（可以一次性执行）：
 
    ```sql
-   -- 创建分组表
-   CREATE TABLE IF NOT EXISTS groups (
-       id INTEGER PRIMARY KEY AUTOINCREMENT, 
-       name TEXT NOT NULL, 
-       order_num INTEGER NOT NULL, 
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
+   -- 1. 创建分组表
+CREATE TABLE IF NOT EXISTS groups (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    name TEXT NOT NULL, 
+    order_num INTEGER NOT NULL, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-   -- 创建站点表
-   CREATE TABLE IF NOT EXISTS sites (
-       id INTEGER PRIMARY KEY AUTOINCREMENT, 
-       group_id INTEGER NOT NULL, 
-       name TEXT NOT NULL, 
-       url TEXT NOT NULL, 
-       icon TEXT, 
-       description TEXT, 
-       notes TEXT, 
-       order_num INTEGER NOT NULL, 
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-   );
 
-   -- 创建配置表
-   CREATE TABLE IF NOT EXISTS configs (
-       key TEXT PRIMARY KEY,
-       value TEXT NOT NULL,
-       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-   );
+   -- 2. 创建站点表
+CREATE TABLE IF NOT EXISTS sites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, 
+    group_id INTEGER NOT NULL, 
+    name TEXT NOT NULL, 
+    url TEXT NOT NULL, 
+    icon TEXT, 
+    description TEXT, 
+    notes TEXT, 
+    order_num INTEGER NOT NULL, 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+);
 
-   -- 设置初始化标志
-   INSERT INTO configs (key, value) VALUES ('DB_INITIALIZED', 'true');
-   ```
+   -- 3. 创建配置表
+CREATE TABLE IF NOT EXISTS configs (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-   - 点击"运行"按钮执行SQL命令：
+-- 4. 设置初始化标志
+INSERT INTO configs (key, value) VALUES ('DB_INITIALIZED', 'true');
+
+
+-- 查看所有表
+SELECT name FROM sqlite_master WHERE type='table';
+
+
+   **提示**：您可以将以上所有SQL语句一次性复制粘贴到控制台中执行，无需逐条执行。最后一条语句使用了 `INSERT OR IGNORE`，这样即使已经存在初始化标志也不会报错。
+
+   - 点击"执行"按钮运行SQL命令：
 
    ![SQL编辑器界面](https://img.zhengmi.org/file/1743843528319_image.png)
 
