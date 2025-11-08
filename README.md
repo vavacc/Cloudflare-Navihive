@@ -150,47 +150,45 @@ NaviHive 是一个精美的网站导航管理系统，帮助你整理和管理�
 
    ```sql
    -- 1. 创建分组表
-CREATE TABLE IF NOT EXISTS groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    name TEXT NOT NULL, 
-    order_num INTEGER NOT NULL, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+   CREATE TABLE IF NOT EXISTS groups (
+       id INTEGER PRIMARY KEY AUTOINCREMENT, 
+       name TEXT NOT NULL, 
+       order_num INTEGER NOT NULL, 
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
 
    -- 2. 创建站点表
-CREATE TABLE IF NOT EXISTS sites (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, 
-    group_id INTEGER NOT NULL, 
-    name TEXT NOT NULL, 
-    url TEXT NOT NULL, 
-    icon TEXT, 
-    description TEXT, 
-    notes TEXT, 
-    order_num INTEGER NOT NULL, 
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-    FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
-);
+   CREATE TABLE IF NOT EXISTS sites (
+       id INTEGER PRIMARY KEY AUTOINCREMENT, 
+       group_id INTEGER NOT NULL, 
+       name TEXT NOT NULL, 
+       url TEXT NOT NULL, 
+       icon TEXT, 
+       description TEXT, 
+       notes TEXT, 
+       order_num INTEGER NOT NULL, 
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
+   );
 
    -- 3. 创建配置表
-CREATE TABLE IF NOT EXISTS configs (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+   CREATE TABLE IF NOT EXISTS configs (
+       key TEXT PRIMARY KEY,
+       value TEXT NOT NULL,
+       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+   );
 
--- 4. 设置初始化标志
-INSERT INTO configs (key, value) VALUES ('DB_INITIALIZED', 'true');
+   -- 4. 设置初始化标志
+   INSERT OR IGNORE INTO configs (key, value) VALUES ('DB_INITIALIZED', 'true');
 
+   -- 5. 验证表是否创建成功
+   SELECT name FROM sqlite_master WHERE type='table';
+   ```
 
--- 查看所有表
-SELECT name FROM sqlite_master WHERE type='table';
-
-
-   **提示**：您可以将以上所有SQL语句一次性复制粘贴到控制台中执行，无需逐条执行。最后一条语句使用了 `INSERT OR IGNORE`，这样即使已经存在初始化标志也不会报错。
+   **提示**：您可以将以上所有SQL语句一次性复制粘贴到控制台中执行，无需逐条执行。第4条语句使用了 `INSERT OR IGNORE`，这样即使已经存在初始化标志也不会报错。第5条是验证语句，执行后应该能看到 `groups`、`sites`、`configs` 三个表。
 
    - 点击"执行"按钮运行SQL命令：
 
